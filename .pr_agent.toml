@@ -1,0 +1,181 @@
+############################################################
+# Qodo Merge / PR-Agent configuration (Public OSS repo)
+# Target: Frappe custom app (Python + MariaDB/MySQL)
+############################################################
+
+[config]
+output_relevant_configurations = true  # helpful to debug applied settings :contentReference[oaicite:3]{index=3}
+ignore_pr_labels = ["do-not-merge", "skip-qodo"]
+ignore_pr_title = ["^\\[Auto\\]", "^Auto", "^\\[Bump\\]"]
+
+# IMPORTANT (Hosted Free plan):
+# Do NOT set [config].model here unless you have confirmed your hosted plan supports it.
+# Qodo docs emphasize keeping defaults and note model selection for On-Prem installs. :contentReference[oaicite:4]{index=4}
+
+
+############################################################
+# Automation: run tools automatically on PR open / update
+############################################################
+[github_app]
+pr_commands = [
+  "/describe --pr_description.final_update_message=false",
+  "/review",
+  "/improve"
+]
+push_commands = [
+  "/describe --pr_description.final_update_message=false"
+]
+feedback_on_draft_pr = true
+
+
+############################################################
+# PR description generation
+############################################################
+[pr_description]
+enable_pr_diagram = true
+final_update_message = false
+
+extra_instructions = """
+Highlight any database schema changes (Doctype/child table modifications), new background jobs (frappe.enqueue / scheduler events),
+and any changes that could increase DB queries or write amplification.
+"""
+
+
+############################################################
+# PR reviewer settings
+############################################################
+[pr_reviewer]
+persistent_comment = true
+final_update_message = false
+enable_help_text = false
+num_max_findings = 8
+
+require_score_review = true
+require_tests_review = true
+require_security_review = true
+require_can_be_split_review = true
+require_todo_scan = true
+require_ticket_analysis_review = true
+
+enable_review_labels_security = true
+enable_review_labels_effort = true
+
+extra_instructions = """
+You are a Senior Technical Architect specializing in the Frappe Framework, Python, and MariaDB optimization.
+Be concise but strict about performance and security. Provide code snippets (or pseudocode) for fixes.
+
+========================
+1) 🚨 FRAPPE PERFORMANCE KILLERS (High Priority)
+========================
+A) N+1 Query Detection (must flag):
+- Flag ANY loop that contains `frappe.get_doc`, `frappe.db.get_value`, `frappe.db.get_all/get_list`, or `frappe.db.sql`.
+- Explain the query multiplier (e.g., “1 + N queries”) and propose a bulk-fetch refactor:
+  - pre-fetch with `frappe.get_all/get_list` (with fields + filters) or one SQL query with IN,
+  - build a dict/map keyed by name, then iterate without DB calls.
+
+B) Heavy Writes / Controller chain (must flag):
+- If `doc.save()` is used to update just 1–2 fields, aggressively suggest replacing with:
+  - `frappe.db.set_value(doctype, name, field, value)`
+  - or `frappe.db.set_value(doctype, name, {field1: v1, field2: v2})`
+- Explain it avoids triggering heavy validations / hooks / controller logic unnecessarily.
+- Exception: if controller validations are required for correctness, require justification.
+
+C) ORM abuse / wrong API choice:
+- Warn against `frappe.db.sql()` if the same can be achieved by permission-safe ORM (`frappe.get_list/get_all`)
+  unless it is a complex join/aggregation needing SQL.
+- Also warn when `frappe.db.*` is used in user-facing endpoints where permission checks matter.
+
+D) Redundant commits (must flag):
+- `frappe.db.commit()` inside loops is forbidden unless there is a carefully justified transactional reason.
+- Suggest moving commit outside loop, batching, or using background jobs.
+
+E) Unbounded reads:
+- Flag `get_all/get_list` without strong filters or without pagination on potentially large tables.
+- Recommend adding filters, indexed ordering, `limit/page_length`, or background processing.
+
+F) Hot hooks:
+- Flag heavy work (bulk queries, file IO, network calls) inside validate/on_update/after_insert hooks.
+- Recommend `frappe.enqueue` and async jobs.
+
+========================
+2) 🛡️ SECURITY & SQL SAFETY (must be strict)
+========================
+A) SQL injection:
+- Strictly forbid f-strings / concatenation inside `frappe.db.sql()`.
+- REQUIRE parameter passing: `frappe.db.sql("... %s", (val,))`.
+
+B) Whitelisting:
+- If functions are intended to be called from client (JS / REST), ensure `@frappe.whitelist()` exists.
+- Confirm sensitive functions are NOT accidentally exposed.
+
+C) Permission checks:
+- For new `get_list/get_all`/SQL calls, ensure strict permissions are not bypassed.
+- If `ignore_permissions=True` or `frappe.db.*` is used, REQUIRE explicit justification + risk assessment.
+
+D) Unsafe patterns:
+- Flag `eval/exec`, insecure deserialization, and unsafe file path usage.
+
+========================
+3) 🐍 PYTHONIC & LOGIC OPTIMIZATIONS
+========================
+A) Mutable defaults (must flag):
+- `def f(x=[])` / `def f(x={})` etc. Require `None` + initialization.
+
+B) Data structure choices:
+- If code does `if item in big_list`, suggest `set(big_list)` for O(1) lookups.
+
+C) Inefficient loops:
+- Reduce nested loops; pull invariants out; memoize expensive computations.
+
+D) List building:
+- Suggest list comprehensions ONLY when readability remains good.
+- Avoid creating large intermediate lists when generators/chunking is better.
+
+E) String + datetime churn:
+- Flag repeated parsing/formatting/conversions inside loops.
+
+========================
+4) 📉 MARIADB / DATABASE OPTIMIZATION CHECKS
+========================
+A) Wildcards / over-fetching:
+- Warn against `SELECT *`. Require selecting specific columns.
+
+B) Indexing:
+- If a field is used in WHERE / JOIN / ORDER BY patterns frequently, ask if it needs an index.
+- If appropriate, suggest composite index order aligned with query filters (e.g., company + docstatus + posting_date).
+
+C) Sorting + limiting:
+- Flag ORDER BY on large sets without indexed order; recommend index or reduce rows first.
+
+D) Aggregations:
+- If Python loops compute SUM/COUNT over many rows, suggest SQL aggregation where safe.
+
+========================
+5) OUTPUT REQUIREMENTS
+========================
+- Provide concrete refactor steps and code snippets.
+- Quantify impact when possible: “reduces from N queries to 1”.
+- If table sizes/indexes are unknown, recommend checking EXPLAIN and adding indexes if confirmed.
+"""
+
+
+############################################################
+# /improve tool (PR code suggestions)
+############################################################
+[pr_code_suggestions]
+demand_code_suggestions_self_review = true
+suggestions_depth = "exhaustive"
+
+# Gemini suggested knobs — keep them, but note behavior may be capped by product defaults.
+# There are reports that suggestions may still max at a small number in some scenarios. :contentReference[oaicite:5]{index=5}
+num_code_suggestions_per_chunk = 6
+
+extra_instructions = """
+Focus suggestions on PERFORMANCE + SECURITY:
+- Reduce DB roundtrips (bulk fetch, IN queries, joins/aggregates).
+- Prefer set_value over save for small field updates unless validations are required.
+- Ensure parameterized SQL only.
+- Ensure endpoints are whitelisted intentionally and respect permissions.
+- Prefer chunking/generators for big datasets.
+Return copy-paste ready snippets when feasible.
+"""
