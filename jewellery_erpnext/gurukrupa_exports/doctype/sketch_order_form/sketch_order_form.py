@@ -45,20 +45,24 @@ class SketchOrderForm(Document):
                 "Sketch Order", filters={"sketch_order_form": self.name}, pluck="name"
             )
 
-            for sketch_order_names in sketch_order_names:
-                frappe.db.set_value(
-                    "Sketch Order",
-                    sketch_order_names,
-                    "update_delivery_date",
-                    self.updated_delivery_date,
-                )
+            frappe.db.set_value(
+                "Sketch Order",
+                {"name": ["in", sketch_order_names]},
+                "update_delivery_date",
+                self.updated_delivery_date,
+            )
 
     def cancel_linked_sketch_orders(self):
         sketch_orders = frappe.db.get_list(
             "Sketch Order", filters={"sketch_order_form": self.name}, fields="name"
         )
-        for order in sketch_orders:
-            frappe.db.set_value("Sketch Order", order["name"], "workflow_state", "Cancelled")
+
+        frappe.db.set_value(
+            "Sketch Order",
+            {"name": ["in", [order["name"] for order in sketch_orders]]},
+            "workflow_state",
+            "Cancelled",
+        )
 
         frappe.db.set_value("Sketch Order Form", self.name, "workflow_state", "Cancelled")
         self.reload()
@@ -76,7 +80,7 @@ def create_sketch_order(doc):
         apply_parent_dates(doc, sketch_order)
         apply_order_criteria_dates(doc, sketch_order, order_criteria)
 
-        sketch_order.save(ignore_permissions=True)
+        sketch_order.save()
         created_orders.append(get_link_to_form("Sketch Order", order_name))
 
     if created_orders:
