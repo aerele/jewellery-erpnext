@@ -72,17 +72,17 @@ def create_sketch_order(doc):
     order_criteria = frappe.get_single("Order Criteria")
     created_orders = []
 
+    department_shifts = {
+        row.department: (get_time(row.shift_start_time), get_time(row.shift_end_time))
+        for row in order_criteria.department_shift
+        if not row.disable
+    }
+
     for row in doc.order_details:
-        order_name = make_sketch_order("Sketch Order Form Detail", row.name, doc)
-
-        sketch_order = frappe.get_doc("Sketch Order", order_name)
-
-        apply_parent_dates(doc, sketch_order)
-        apply_order_criteria_dates(doc, sketch_order, order_criteria)
-
-        sketch_order.save()
+        order_name = make_sketch_order(
+            "Sketch Order Form Detail", row.name, doc, order_criteria, department_shifts
+        )
         created_orders.append(get_link_to_form("Sketch Order", order_name))
-
     if created_orders:
         frappe.msgprint(
             _("The following {0} were created: {1}").format(
@@ -101,26 +101,20 @@ def apply_parent_dates(parent, sketch_order):
         sketch_order.delivery_date = get_datetime(parent.delivery_date)
 
 
-def apply_order_criteria_dates(parent, sketch_order, order_criteria):
+def apply_order_criteria_dates(parent, sketch_order, order_criteria, department_shifts):
     if not parent.order_date:
         return
 
-    parent_date = getdate(parent.order_date)
+    if parent.department not in department_shifts:
+        return
 
-    department_shifts = {
-        row.department: (get_time(row.shift_start_time), get_time(row.shift_end_time))
-        for row in order_criteria.department_shift
-        if not row.disable
-    }
+    shift_start, shift_end = department_shifts[parent.department]
+
+    parent_date = getdate(parent.order_date)
 
     for criteria in order_criteria.order:
         if criteria.disable:
             continue
-
-        if parent.department not in department_shifts:
-            continue
-
-        shift_start, shift_end = department_shifts[parent.department]
 
         sketch_delivery = calculate_sketch_delivery(parent_date, criteria)
         sketch_order.sketch_delivery_date = sketch_delivery
@@ -166,12 +160,16 @@ def calculate_ibm_delivery(base_datetime, ibm_time_value, shift_start, shift_end
     return datetime.combine(next_day, shift_start) + timedelta(hours=extra_hours)
 
 
-def make_sketch_order(doctype, source_name, parent_doc, target_doc=None):
+def make_sketch_order(
+    doctype, source_name, parent_doc, order_criteria, department_shifts, target_doc=None
+):
     def set_missing_values(source, target):
         target.sketch_order_form_detail = source.name
         target.sketch_order_form = source.parent
         target.sketch_order_form_index = source.idx
         copy_parent_fields(parent_doc, target)
+        apply_parent_dates(parent_doc, target)
+        apply_order_criteria_dates(parent_doc, target, order_criteria, department_shifts)
 
     doc = get_mapped_doc(
         doctype,
