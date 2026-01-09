@@ -9,21 +9,23 @@ from frappe.model.workflow import apply_workflow
 class TestSketchOrderForm(FrappeTestCase):
 	def setUp(self):
 		create_test_data()
+		self.department = frappe.get_value('Department',{'department_name':'Test_Department'},'name')
+		self.branch = frappe.get_value('Branch',{'branch_name':'Test Branch'},'name')
 
 	def test_sketch_order_created(self):
-		sk_ord_frm = make_sketch_order_form(order_type = 'Sales', design_type = 'New Design')
+		sk_ord_frm = make_sketch_order_form(department = self.department, branch = self.branch, order_type = 'Sales', design_type = 'New Design')
 
 		sketch_order = frappe.get_all("Sketch Order", filters = {'sketch_order_form': sk_ord_frm.name, 'docstatus': 0})
 		self.assertEqual(len(sketch_order), len(sk_ord_frm.order_details))
 
 	def test_sketch_order_created_mod_design(self):
-		sk_ord_frm = make_sketch_order_form(order_type = 'Sales', design_type = 'Mod', design_code = 'EA00978-003')
+		sk_ord_frm = make_sketch_order_form(department = self.department, branch = self.branch, order_type = 'Sales', design_type = 'Mod', design_code = 'EA00978-003')
 
 		sketch_order = frappe.get_all("Sketch Order", filters = {'sketch_order_form': sk_ord_frm.name, 'docstatus': 0})
 		self.assertEqual(len(sketch_order), len(sk_ord_frm.order_details))
 
 	def test_purchase_order_created(self):
-		sk_ord_frm = make_sketch_order_form(order_type='Purchase', supplier='Test_Supplier', design_type='New Design')
+		sk_ord_frm = make_sketch_order_form(department = self.department, branch = self.branch, order_type='Purchase', supplier='Test_Supplier', design_type='New Design')
 
 		sketch_order = frappe.get_all("Sketch Order", filters={'sketch_order_form': sk_ord_frm.name, 'docstatus': 0})
 		self.assertEqual(len(sketch_order), len(sk_ord_frm.order_details))
@@ -64,7 +66,7 @@ def create_test_data():
 		)
 		supplier.insert()
 
-	if not frappe.get_value('Department',{'department_name':'Test_Department'},'name'):
+	if not frappe.db.exists('Department',{'department_name':'Test_Department'}):
 		dep = frappe.get_doc(
 			{
 				'doctype': 'Department',
@@ -74,7 +76,7 @@ def create_test_data():
 		)
 		dep.insert()
 
-	if not frappe.get_value('Branch',{'branch_name':'Test Branch'},'name'):
+	if not frappe.db.exists('Branch',{'branch_name':'Test Branch'}):
 		branch = frappe.get_doc(
 			{
 				'doctype': 'Branch',
@@ -100,8 +102,8 @@ def make_sketch_order_form(**args):
 	sketch_order_form = frappe.new_doc('Sketch Order Form')
 	sketch_order_form.company = 'Gurukrupa Export Private Limited'
 	sketch_order_form.customer_code = 'Test_Customer_External'
-	sketch_order_form.department = frappe.get_value('Department',{'department_name':'Test_Department'},'name')
-	sketch_order_form.branch = frappe.get_value('Branch',{'branch_name':'Test Branch'},'name')
+	sketch_order_form.department = args.department
+	sketch_order_form.branch = args.branch
 	sketch_order_form.salesman_name = 'Test_Sales_Person'
 	sketch_order_form.order_type = args.order_type
 	sketch_order_form.order_date = now()
@@ -186,6 +188,5 @@ def make_sketch_order_form(**args):
 	sketch_order_form.insert()
 	apply_workflow(sketch_order_form, 'Send For Approval')
 	apply_workflow(sketch_order_form, 'Approve')
-	frappe.db.commit()
 
 	return sketch_order_form
