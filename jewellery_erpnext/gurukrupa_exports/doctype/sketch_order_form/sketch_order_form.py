@@ -53,13 +53,13 @@ class SketchOrderForm(Document):
             )
 
     def cancel_linked_sketch_orders(self):
-        sketch_orders = frappe.db.get_list(
-            "Sketch Order", filters={"sketch_order_form": self.name}, fields="name"
+        sketch_orders = frappe.db.get_all(
+            "Sketch Order", filters={"sketch_order_form": self.name}, pluck="name"
         )
 
         frappe.db.set_value(
             "Sketch Order",
-            {"name": ["in", [order["name"] for order in sketch_orders]]},
+            {"name": ["in", sketch_orders]},
             "workflow_state",
             "Cancelled",
         )
