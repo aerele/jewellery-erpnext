@@ -7,10 +7,12 @@ from frappe.utils import now, add_days
 from frappe.model.workflow import apply_workflow
 
 class TestSketchOrderForm(FrappeTestCase):
-	def setUp(self):
+
+	@classmethod
+	def setUpClass(cls):
 		create_test_data()
-		self.department = frappe.get_value('Department',{'department_name':'Test_Department'},'name')
-		self.branch = frappe.get_value('Branch',{'branch_name':'Test Branch'},'name')
+		cls.department = frappe.get_value('Department',{'department_name':'Test_Department'},'name')
+		cls.branch = frappe.get_value('Branch',{'branch_name':'Test Branch'},'name')
 
 	def test_sketch_order_created(self):
 		sk_ord_frm = make_sketch_order_form(department = self.department, branch = self.branch, order_type = 'Sales', design_type = 'New Design')
@@ -44,7 +46,7 @@ def create_test_data():
 				'custom_sketch_workflow_state': 'External'
 			}
 		)
-		customer.insert()
+		customer.save()
 
 	if not frappe.db.exists('Customer', 'Test_Customer_Internal'):
 		customer = frappe.get_doc(
@@ -55,7 +57,7 @@ def create_test_data():
 				'custom_sketch_workflow_state': 'Internal'
 			}
 		)
-		customer.insert()
+		customer.save()
 
 	if not frappe.db.exists('Supplier', 'Test_Supplier'):
 		supplier = frappe.get_doc(
@@ -64,7 +66,7 @@ def create_test_data():
 				'supplier_name': 'Test_Supplier'
 			}
 		)
-		supplier.insert()
+		supplier.save()
 
 	if not frappe.db.exists('Department',{'department_name':'Test_Department'}):
 		dep = frappe.get_doc(
@@ -74,7 +76,7 @@ def create_test_data():
 				"company": 'Gurukrupa Export Private Limited'
 			}
 		)
-		dep.insert()
+		dep.save()
 
 	if not frappe.db.exists('Branch',{'branch_name':'Test Branch'}):
 		branch = frappe.get_doc(
@@ -85,7 +87,7 @@ def create_test_data():
 				'company': 'Gurukrupa Export Private Limited'
 			}
 		)
-		branch.insert()
+		branch.save()
 
 	if not frappe.db.exists('Sales Person', 'Test_Sales_Person'):
 		salesman = frappe.get_doc(
@@ -94,7 +96,7 @@ def create_test_data():
 				'sales_person_name': 'Test_Sales_Person'
 			}
 		)
-		salesman.insert()
+		salesman.save()
 
 
 def make_sketch_order_form(**args):
