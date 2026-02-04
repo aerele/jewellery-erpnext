@@ -19,7 +19,7 @@ class TestSketchOrder(FrappeTestCase):
 
         sketch_order = frappe.get_doc('Sketch Order', frappe.get_value('Sketch Order', filters={'sketch_order_form':sketch_order_form.name}))
 
-        sketch_order.sketch_image = 'https://i.pinimg.com/236x/d1/d9/8a/d1d98a9076b32483958f956ff580c76e.jpg'
+        sketch_order.sketch_image = 'https://www.chidambaramcovering.in/image/cache/catalog/Mogappu%20Chain/mchn510-gold-plated-jewellery-mugappu-design-without-stone-5-425x500.jpg.webp'
         sketch_order.save()
         apply_workflow(sketch_order, 'Update')
         sketch_order.reload()
@@ -58,8 +58,8 @@ class TestSketchOrder(FrappeTestCase):
         apply_workflow(sketch_order, 'Approve')
         self.assertEqual(len(sketch_order.rough_sketch_approval), len(sketch_order.final_sketch_approval))
         for row in sketch_order.final_sketch_approval_cmo:
-            row.sketch_image = 'https://i.pinimg.com/236x/d1/d9/8a/d1d98a9076b32483958f956ff580c76e.jpg'
-            row.sub_category = 'God Ring'
+            row.sketch_image = 'https://www.chidambaramcovering.in/image/cache/catalog/Mogappu%20Chain/mchn510-gold-plated-jewellery-mugappu-design-without-stone-5-425x500.jpg.webp'
+            row.sub_category = 'Casual Mugappu'
             row.setting_type = 'Open'
             row.gold_wt_approx = 10
             row.diamond_wt_approx = 10
