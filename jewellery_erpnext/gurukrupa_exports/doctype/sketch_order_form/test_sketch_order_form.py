@@ -22,7 +22,8 @@ class TestSketchOrderForm(FrappeTestCase):
 		self.assertEqual(len(sketch_order), len(sk_ord_frm.order_details))
 
 	def test_sketch_order_created_mod_design(self):
-		sk_ord_frm = make_sketch_order_form(department = self.department, branch = self.branch, order_type = 'Sales', design_type = 'Mod', design_code = 'EA00978-003')
+		item = frappe.db.get_value('Item', {'has_variants': 0}, 'name', order_by = 'creation desc')
+		sk_ord_frm = make_sketch_order_form(department = self.department, branch = self.branch, order_type = 'Sales', design_type = 'Mod', design_code = item)
 
 		sketch_order = frappe.get_all("Sketch Order", filters = {'sketch_order_form': sk_ord_frm.name, 'docstatus': 0})
 		self.assertEqual(len(sketch_order), len(sk_ord_frm.order_details))
@@ -151,7 +152,7 @@ def make_sketch_order_form(**args):
 			'tag__design_id': args.design_code,
 			'budget': 50000,
 			'metal_target': 1.1,
-			'diamond_target': 1.25,
+			'diamond_target': 1.5,
 			'product_size': '10',
 			'sizer_type': 'Rod',
 			'gemstone_type': 'Ruby',
@@ -166,8 +167,8 @@ def make_sketch_order_form(**args):
 	else:
 		sketch_order_form.append('order_details', {
 			'design_type': args.design_type,
-			'category': 'Ring',
-			'subcategory': 'God Ring',
+			'category': 'Mugappu',
+			'subcategory': 'Casual Mugappu',
 			'setting_type': 'Open',
 			'sub_setting_type1': 'Close-Open Setting',
 			'metal_type': 'Gold',
@@ -177,7 +178,7 @@ def make_sketch_order_form(**args):
 			'metal_target': 1.1,
 			'diamond_target': 1.25,
 			'product_size': '10',
-			'sizer_type': 'Rod',
+			'sizer_type': 'Scale',
 			'gemstone_type': 'Ruby',
 			'stone_changeable': 'No',
 			'length': 10,
